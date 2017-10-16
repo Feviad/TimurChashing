@@ -12,11 +12,28 @@ def create_order(user_id):
         # определяем какой айдишник был создан, чтобы его передать обратно
         create_order_query = f'SELECT id FROM orders WHERE user_id = {user_id} AND flag = 1'
         cur.execute(create_order_query)
-        order = cur.fetchone()
+        order = cur.fetchone()[0]
         create_order_query = f'UPDATE orders SET flag = 0'
         cur.execute(create_order_query)
         conn.commit()
+        create_order_query = f'INSERT INTO orders_states (id) VALUES ({order})'
+        print(create_order_query)
+        cur.execute(create_order_query)
+        conn.commit()
         return order
+
+
+def end_order(order_id):
+    with sqlite3.connect('rest_bot.db') as conn:
+        cur = conn.cursor()
+        update_state_query = f'DELETE FROM orders ' \
+                             f'WHERE id = {order_id}'
+        cur.execute(update_state_query)
+        update_state_query = f'DELETE FROM orders_states ' \
+                             f'WHERE id = {order_id}'
+        cur.execute(update_state_query)
+        conn.commit()
+
 
 
 def update_order(field, value, order_id):
