@@ -76,24 +76,32 @@ def handle_doc(message):
     # узнаём, в каком состоянии сейчас пользователь
     state = states.get_user_state_by_id(message.from_user.id)
     # формируем ответ исходя из состояния
-    response = text_handler.handle_text(message, 'document', state)
+    if state == 'CONFIRMING':
+        response = text_handler.handle_text(message, 'document', state)
 
-    keyboard = telebot.types.InlineKeyboardMarkup()
-    data = {'Answer': True, 'ID': message.from_user.id}
-    callback_button = telebot.types.InlineKeyboardButton(text="Всё верно",
-                                                         callback_data=str(
-                                                             data))
-    keyboard.add(callback_button)
-    data = {'Answer': False, 'ID': message.from_user.id}
-    callback_button = telebot.types.InlineKeyboardButton(text="Ты чё прислал?",
-                                                         callback_data=str(
-                                                             data))
-    keyboard.add(callback_button)
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        data = {'Answer': True, 'ID': message.from_user.id}
+        callback_button = telebot.types.InlineKeyboardButton(text="Всё верно",
+                                                             callback_data=str(
+                                                                 data))
+        keyboard.add(callback_button)
+        data = {'Answer': False, 'ID': message.from_user.id}
+        callback_button = telebot.types.InlineKeyboardButton(
+            text="Ты чё прислал?",
+            callback_data=str(
+                data))
+        keyboard.add(callback_button)
 
-    file_info = bot.get_file(message.document.file_id)
-    downloaded_file = bot.download_file(file_info.file_path)
+        file_info = bot.get_file(message.document.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
 
-    bot.send_document(MANAGER, downloaded_file, reply_markup=keyboard)
+        bot.send_message(MANAGER, response['Text'])
+        bot.send_document(MANAGER, downloaded_file, reply_markup=keyboard)
+
+    else:
+
+        bot.send_message(message.from_user.id, 'вы ничего не заказывали')
+
 
 # инлайн ответ
 @bot.callback_query_handler(func=lambda call: True)

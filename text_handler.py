@@ -81,6 +81,14 @@ def set_payment(message, command):
                'Markup': main_markup,
                'Send': False
                }
+    elif command == 'document':
+        #это пошлётся не пользвателю а мэнэджеру
+        response = 'Тут чел один {} файлик прислал, глянь по братски'.format(
+            message.from_user.id)
+        ret = {'Text': response,
+               'Markup': None,
+               'Send': False
+               }
     else:
         response = 'Вам нужно совершить платёж и прислать файл, ' \
                    'который это подтверждает'
