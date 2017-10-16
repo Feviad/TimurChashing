@@ -17,7 +17,6 @@ def create_order(user_id):
         cur.execute(create_order_query)
         conn.commit()
         create_order_query = f'INSERT INTO orders_states (id) VALUES ({order})'
-        print(create_order_query)
         cur.execute(create_order_query)
         conn.commit()
         return order

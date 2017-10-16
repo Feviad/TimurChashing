@@ -21,8 +21,8 @@ def create_order(message, command):
         states.update_user_state('ORDERING', message.from_user.id)
         response = 'Пожалуйста, введите сумму:'
 
-        request_comment_markup = ReplyKeyboardMarkup(True, True)
-        request_comment_markup.row('Запросить', 'Отменить')
+        request_comment_markup = ReplyKeyboardMarkup(True, False)
+        request_comment_markup.row('Отменить')
     else:
         request_comment_markup = None
         response = 'Пожалуйста, воспользуйтесь клавиатурой:'
@@ -67,16 +67,30 @@ def set_sum(message, command):
     return ret
 
 
-def set_payment(message):
-    order_id = orders.get_order_id_by_user(message.from_user.id)
-    orders.update_order('persons', message.text, order_id)
-    states.update_user_state('WAITING FOR DATE', message.from_user.id)
-    response = 'Пожалуйста, введите дату бронирования:'
+def set_payment(message, command):
+    if command == 'Отменить':
+        order_id = orders.get_order_id_by_user(message.from_user.id)
+        orders.end_order(order_id)
 
-    ret = {'Text': response,
-            'Markup': None,
-            'Send': False
-            }
+        response = 'Заказ отменён'
+        states.update_user_state('WAITING', message.from_user.id)
+        main_markup = ReplyKeyboardMarkup(True, False)
+        main_markup.row('Запросить сумму')
+
+        ret = {'Text': response,
+               'Markup': main_markup,
+               'Send': False
+               }
+    else:
+        response = 'Вам нужно совершить платёж и прислать файл, ' \
+                   'который это подтверждает'
+
+        ret = {'Text': response,
+               'Markup': None,
+               'Send': False
+               }
+
+
     return ret
 
 '''
