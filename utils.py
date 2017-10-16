@@ -13,12 +13,13 @@ def add_id(user):
                 user.first_name = 'NULL'
             if not user.last_name:
                 user.last_name = 'NULL'
+
             users_query = f'INSERT INTO users VALUES (' \
                           f'\'{user.id}\', \'{user.first_name}\', ' \
                           f'\'{user.last_name}\')'
 
             states_query = f'INSERT INTO users_states VALUES (\'{user.id}\', ' \
-                           f'\'WAITING FOR ORDER\')'
+                           f'\'WAITING\')'
 
             cur.execute(users_query)
             cur.execute(states_query)

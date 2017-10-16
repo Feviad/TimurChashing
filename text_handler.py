@@ -9,42 +9,61 @@ import datetime
 # Все все ответы собираются здесь. В зависимости от состояния юзера вызывается соответсвующая функция. В ответ каждая  #
 # функция отдаёт словарь следующего формата:                                                                           #
 # Text = текст сообщения от бота; Markup = нужно ли обновление клавиатуры, и какое; Send = Нужно ли послать сообщение  #
-# мэнеджеру; [Order] = ID заказа, по которому будет задан вопрос мэнэджеру                                             #
+# мэнеджеру; [Order] = ID заказа, по которому будет задан вопрос мэнэджеру ( не актуально пока)                        #
 # ==================================================================================================================== #
 
 
-def create_order(message):
+def create_order(message, command):
     # Новый заказ
-    order_id = orders.create_order(message.from_user.id)
-    states.update_order_state('IS BEING PREPARED', order_id)
-    states.update_user_state('WAITING FOR SUM', message.from_user.id)
-    response = 'Пожалуйста, введите сумму:'
+    if command == 'Запросить сумму':
+        order_id = orders.create_order(message.from_user.id)
+        states.update_order_state('IS BEING PREPARED', order_id)
+        states.update_user_state('ORDERING', message.from_user.id)
+        response = 'Пожалуйста, введите сумму:'
+
+        request_comment_markup = ReplyKeyboardMarkup(True, True)
+        request_comment_markup.row('Запросить', 'Отменить')
+    else:
+        request_comment_markup = None
+        response = 'Пожалуйста, воспользуйтесь клавиатурой:'
 
     ret = {'Text': response,
-           'Markup': None,
+           'Markup': request_comment_markup,
            'Send': False
            }
     return ret
 
 
-def set_sum(message):
-    order_id = orders.get_order_id_by_user(message.from_user.id)
+def set_sum(message, command):
+    if command == 'Отменить':
+        order_id = orders.get_order_id_by_user(message.from_user.id)
+        orders.end_order(order_id)
 
-    # TODO здесь собственно вся байда с лимитами проверками суммы и тд
-    orders.update_order('name', message.text, order_id)
+        response = 'Заказ отменён'
+        states.update_user_state('WAITING', message.from_user.id)
+        main_markup = ReplyKeyboardMarkup(True, False)
+        main_markup.row('Запросить сумму')
 
-    states.update_user_state('WAITING FOR FILE', message.from_user.id)
+        ret = {'Text': response,
+              'Markup': main_markup,
+              'Send': False
+              }
+    else:
+        order_id = orders.get_order_id_by_user(message.from_user.id)
+        # TODO здесь собственно вся байда с лимитами проверками суммы и тд
+        check = True
+        if check:
+            states.update_user_state('CONFIRMING', message.from_user.id)
+            response = 'Совершите платёж, пришлите файл подтверждения'
+            orders.update_order('time', str(datetime.datetime.now()), order_id)
 
-    response = 'Вот платёжка:'
-
-    # TODO платёжка?...
-
-    orders.update_order('time', str(datetime.datetime.now()), order_id)
-
-    ret = {'Text': response,
-           'Markup': None,
-           'Send': False
-           }
+        else:
+            response = 'Не получится выполнить такой запрос, ' \
+                       'попробуйте ввести другую сумму'
+        ret = {'Text': response,
+              'Markup': None,
+              'Send': False
+              }
     return ret
 
 
@@ -60,7 +79,7 @@ def set_payment(message):
             }
     return ret
 
-
+'''
 def set_date(message):
     order_id = orders.get_order_id_by_user(message.from_user.id)
     orders.update_order('date', message.text, order_id)
@@ -132,17 +151,13 @@ def set_comment(message):
             'Order': order_id
             }
     return ret
+'''
 
-
-def handle_text(message, state):
-    states = {'WAITING FOR ORDER': create_order,
-              'WAITING FOR SUM': set_sum,
-              'WAITING FOR FILE': set_payment,
-
-              'WAITING FOR DATE': set_date,
-              'WAITING FOR TIME': set_time,
-              'CHOOSING COMMENT': choose_comment,
-              'WAITING FOR COMMENT': set_comment
+def handle_text(message, command, state):
+    #commands = {        'Запросить сумму': ,}
+    states = {'WAITING': create_order,
+              'ORDERING': set_sum,
+              'CONFIRMING': set_payment
               }
-    response = states[state](message)
+    response = states[state](message, command)
     return response

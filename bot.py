@@ -28,7 +28,7 @@ def handle_start(message):
     utils.add_id(message.from_user)
     response = 'Добро пожаловать!'
     main_markup = telebot.types.ReplyKeyboardMarkup(True, False)
-    main_markup.row('Сделать платёж')
+    main_markup.row('Запросить сумму')
     # TODO полноценное меню
     bot.send_message(message.from_user.id, response, reply_markup=main_markup)
 
@@ -39,8 +39,10 @@ def handle_text(message):
     # узнаём, в каком состоянии сейчас пользователь
     state = states.get_user_state_by_id(message.from_user.id)
     # формируем ответ исходя из состояния
-    response = text_handler.handle_text(message, state)
+    response = text_handler.handle_text(message, message.text, state)
 
+
+    # mb its not needed ========
     if response['Send']:
         # если был составлен заказ - то посылаем запрос мэнэджеру
         bot.send_message(message.from_user.id, response['Text'])
@@ -55,6 +57,8 @@ def handle_text(message):
         callback_button = telebot.types.InlineKeyboardButton(text="Ты чё прислал?", callback_data=str(data))
         keyboard.add(callback_button)
         bot.send_message(MANAGER, 'Заказ\n' + text, reply_markup=keyboard)
+    # ===========================
+
 
     elif response['Markup']:
         # обычный ответ юзеру, но с обновлением клавиатуры
@@ -72,7 +76,7 @@ def handle_doc(message):
     # узнаём, в каком состоянии сейчас пользователь
     state = states.get_user_state_by_id(message.from_user.id)
     # формируем ответ исходя из состояния
-    response = text_handler.handle_text(message, state)
+    response = text_handler.handle_text(message, 'document', state)
 
     keyboard = telebot.types.InlineKeyboardMarkup()
     data = {'Answer': True, 'ID': message.from_user.id}
@@ -113,8 +117,8 @@ if __name__ == '__main__':
     logger = logging.getLogger('bot_logger')
     logger.setLevel(logging.INFO)
 
-    bot.remove_webhook()
-    time.sleep(3)  # это для первого запуска
+#    bot.remove_webhook()
+#    time.sleep(3)  # это для первого запуска
     handler = RotatingFileHandler('logs/bot_logger',
                                   maxBytes=1024*1024*3,
                                   backupCount=20)
