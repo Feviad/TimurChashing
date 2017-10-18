@@ -5,7 +5,7 @@ def get_order_state_by_id(order_id):
     '''Получить состояние заказа'''
     with sqlite3.connect('rest_bot.db') as conn:
         cur = conn.cursor()
-        request_state_query = f'SELECT state FROM orders_state WHERE id = {order_id}'
+        request_state_query = f'SELECT state FROM orders_states WHERE id = {order_id}'
         cur.execute(request_state_query)
         state = cur.fetchone()[0]
         return state

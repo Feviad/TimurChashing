@@ -12,7 +12,7 @@ import states
 import time
 
 
-from orders import get_order_for_restaurant
+from orders import get_order_id_by_user
 
 
 bot = telebot.TeleBot(config.TOKEN)
@@ -39,28 +39,10 @@ def handle_text(message):
     # узнаём, в каком состоянии сейчас пользователь
     state = states.get_user_state_by_id(message.from_user.id)
     # формируем ответ исходя из состояния
-    response = text_handler.handle_text(message, message.text, state)
+    response = text_handler.handle_text_user(message, message.text, state)
 
-
-    # mb its not needed ========
-    if response['Send']:
-        # если был составлен заказ - то посылаем запрос мэнэджеру
-        bot.send_message(message.from_user.id, response['Text'])
-        text = get_order_for_restaurant(response['Order'])
-
-        # TODO сделать полноценный словарь информации
-        keyboard = telebot.types.InlineKeyboardMarkup()
-        data = {'Answer': True, 'ID': message.from_user.id}
-        callback_button = telebot.types.InlineKeyboardButton(text="Всё верно", callback_data=str(data))
-        keyboard.add(callback_button)
-        data = {'Answer': False, 'ID': message.from_user.id}
-        callback_button = telebot.types.InlineKeyboardButton(text="Ты чё прислал?", callback_data=str(data))
-        keyboard.add(callback_button)
-        bot.send_message(MANAGER, 'Заказ\n' + text, reply_markup=keyboard)
-    # ===========================
-
-
-    elif response['Markup']:
+    # Сперва отправляем ответ юзеру
+    if response['Markup']:
         # обычный ответ юзеру, но с обновлением клавиатуры
         bot.send_message(message.from_user.id,
                          response['Text'],
@@ -69,16 +51,37 @@ def handle_text(message):
         # самый простой ответ юзеру
         bot.send_message(message.from_user.id, response['Text'])
 
+    if response['Send']:
+        # Ещё нужно что-то сообщить мэнэджеру
+
+        order_id = get_order_id_by_user(message.from_user.id)
+        order_state = states.get_order_state_by_id(order_id)
+        response = text_handler.handle_text_manager(state, order_state)
+
+        '''
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        data = {'Answer': True, 'ID': message.from_user.id}
+        callback_button = telebot.types.InlineKeyboardButton(text="Всё верно",
+                                                             callback_data=str(
+                                                                 data))
+        keyboard.add(callback_button)
+        data = {'Answer': False, 'ID': message.from_user.id}
+        callback_button = telebot.types.InlineKeyboardButton(
+            text="Ты чё прислал?", callback_data=str(data))
+        keyboard.add(callback_button)
+        bot.send_message(MANAGER, 'Заказ\n' + text, reply_markup=keyboard)
+        '''
+
 # сообщение c файлом
 @bot.message_handler(func=lambda mesage: True, content_types=['document'])
 def handle_doc(message):
-
     # узнаём, в каком состоянии сейчас пользователь
     state = states.get_user_state_by_id(message.from_user.id)
     # формируем ответ исходя из состояния
     if state == 'CONFIRMING':
-        response = text_handler.handle_text(message, 'document', state)
+        response = text_handler.handle_text_user(message, 'document', state)
 
+        # TODO сделать полноценный словарь информации
         keyboard = telebot.types.InlineKeyboardMarkup()
         data = {'Answer': True, 'ID': message.from_user.id}
         callback_button = telebot.types.InlineKeyboardButton(text="Всё верно",
@@ -112,13 +115,16 @@ def callback_inline(call):
         if resp['Answer']:
             # если приняли заказ
 
+            #TODO изменения состояний
             # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Пыщь")
             bot.send_message(int(resp['ID']), 'Заказ принят!')
+            states.update_user_state('WAITING', int(resp['ID']))
         else:
             # если заказ не принят
 
+            # TODO изменения состояний
             # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Sad")
-            bot.send_message(int(resp['ID']), 'Заказ не принят...')
+            bot.send_message(int(resp['ID']), 'а идика ты с ослом')
 
 
 if __name__ == '__main__':
