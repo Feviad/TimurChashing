@@ -1,18 +1,11 @@
 import logging
 from logging.handlers import RotatingFileHandler
-
 import telebot
-
 import config
 import text_handler
-
-import utils
 import states
 
-import time
-
-
-from orders import get_order_id_by_user
+import requests
 
 
 bot = telebot.TeleBot(config.TOKEN)
@@ -25,7 +18,7 @@ MANAGER = 87435164
 # Старт
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    utils.add_id(message.from_user)
+    states.add_user(message.from_user.id)
     response = 'Добро пожаловать!'
     main_markup = telebot.types.ReplyKeyboardMarkup(True, False)
     main_markup.row('Запросить сумму')
@@ -53,11 +46,7 @@ def handle_text(message):
 
     if response['Send']:
         # Ещё нужно что-то сообщить мэнэджеру
-
-        order_id = get_order_id_by_user(message.from_user.id)
-        order_state = states.get_order_state_by_id(order_id)
-        response = text_handler.handle_text_manager(state, order_state)
-
+        order_state = states.get_order_state_by_id(message.from_user.id)
         '''
         keyboard = telebot.types.InlineKeyboardMarkup()
         data = {'Answer': True, 'ID': message.from_user.id}
@@ -96,13 +85,11 @@ def handle_doc(message):
         keyboard.add(callback_button)
 
         file_info = bot.get_file(message.document.file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
 
+        downloaded_file = bot.download_file(file_info.file_path)
         bot.send_message(MANAGER, response['Text'])
         bot.send_document(MANAGER, downloaded_file, reply_markup=keyboard)
-
     else:
-
         bot.send_message(message.from_user.id, 'вы ничего не заказывали')
 
 
@@ -118,7 +105,7 @@ def callback_inline(call):
             #TODO изменения состояний
             # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Пыщь")
             bot.send_message(int(resp['ID']), 'Заказ принят!')
-            states.update_user_state('WAITING', int(resp['ID']))
+            states.update_user_state(int(resp['ID']), 'WAITING')
         else:
             # если заказ не принят
 
@@ -143,3 +130,16 @@ if __name__ == '__main__':
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     bot.polling(none_stop=True)
+
+
+'''        lol = {
+               'chat_id' : '101088393'
+        }
+   #requests.get('https://api.telegram.org/bot390987414:AAEudQE6TAdUNJfCbKbDxg9izOyraRexeDA/sendDocument?chat_id=101088393&document=' + message.document.file_id)
+        #print('https://api.telegram.org/bot390987414:AAEudQE6TAdUNJfCbKbDxg9izOyraRexeDA/sendDocument?chat_id=101088393&document=' + message.document.file_id)
+        ff = {'file': downloaded_file}
+        #294832802:AAEdQSuUAg_o8K4hDt9eX21h_2cGrYI9HdE
+
+        #requests.post('https://api.telegram.org/bot390987414:AAEudQE6TAdUNJfCbKbDxg9izOyraRexeDA/sendDocument', data=lol, files=ff)
+
+'''
