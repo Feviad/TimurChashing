@@ -1,52 +1,67 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import telebot
+
 import config
 import text_handler
 import states
+import client_db
 
 import requests
 
 
-bot = telebot.TeleBot(config.TOKEN)
-
+bot = telebot.TeleBot(config.TOKEN_CLIENT)
+managerbot = telebot.TeleBot(config.TOKEN_OPERATOR)
 
 # Самая важная херня кода - кто мэнэджер?
+# TODO изменить это на функцию выбора
 MANAGER = 87435164
 
 
 # Старт
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    states.add_user(message.from_user.id)
-    response = 'Добро пожаловать!'
-    main_markup = telebot.types.ReplyKeyboardMarkup(True, False)
-    main_markup.row('Запросить сумму')
-    # TODO полноценное меню
-    bot.send_message(message.from_user.id, response, reply_markup=main_markup)
+    user_id = message.from_user.id
+    user_info = client_db.check_client_in_db(user_id)
+    if not user_info['found']:
+        client_db.add_user(user_id)
+        # TODO start mess
+        response = text_handler.first_start()
+    else:
+        rights = client_db.check_rights(user_id)
+        if rights:
+            # TODO hello mess
+            response = text_handler.first_start()
+        else:
+            # TODO password mess
+            response = text_handler.first_start()
+    bot.send_message(user_id, response['text'],
+                         reply_markup=response['markup'])
 
 
 # Обычное сообщение
 @bot.message_handler(func=lambda mesage: True, content_types=['text'])
 def handle_text(message):
+    user_id = message.from_user.id
     # узнаём, в каком состоянии сейчас пользователь
-    state = states.get_user_state_by_id(message.from_user.id)
+    state = states.get_user_state_by_id(user_id)
     # формируем ответ исходя из состояния
     response = text_handler.handle_text_user(message, message.text, state)
 
     # Сперва отправляем ответ юзеру
-    if response['Markup']:
+    if response['markup']:
         # обычный ответ юзеру, но с обновлением клавиатуры
         bot.send_message(message.from_user.id,
-                         response['Text'],
-                         reply_markup=response['Markup'])
+                         response['text'],
+                         reply_markup=response['markup'])
     else:
         # самый простой ответ юзеру
-        bot.send_message(message.from_user.id, response['Text'])
+        bot.send_message(message.from_user.id, response['text'])
 
-    if response['Send']:
+    if response['send']:
         # Ещё нужно что-то сообщить мэнэджеру
-        order_state = states.get_order_state_by_id(message.from_user.id)
+
+        managerbot.send_message(message.from_user.id, response['send'])
         '''
         keyboard = telebot.types.InlineKeyboardMarkup()
         data = {'Answer': True, 'ID': message.from_user.id}
@@ -67,9 +82,9 @@ def handle_doc(message):
     # узнаём, в каком состоянии сейчас пользователь
     state = states.get_user_state_by_id(message.from_user.id)
     # формируем ответ исходя из состояния
-    if state == 'CONFIRMING':
-        response = text_handler.handle_text_user(message, 'document', state)
+    if state == 'confirming':
 
+        bot.send_message(message.from_user.id, 'Ща проверят')
         # TODO сделать полноценный словарь информации
         keyboard = telebot.types.InlineKeyboardMarkup()
         data = {'Answer': True, 'ID': message.from_user.id}
@@ -87,8 +102,8 @@ def handle_doc(message):
         file_info = bot.get_file(message.document.file_id)
 
         downloaded_file = bot.download_file(file_info.file_path)
-        bot.send_message(MANAGER, response['Text'])
-        bot.send_document(MANAGER, downloaded_file, reply_markup=keyboard)
+        managerbot.send_message(MANAGER, 'OLOLOLOLO')
+        managerbot.send_document(MANAGER, downloaded_file, reply_markup=keyboard)
     else:
         bot.send_message(message.from_user.id, 'вы ничего не заказывали')
 
@@ -103,6 +118,22 @@ def callback_inline(call):
             # если приняли заказ
 
             #TODO изменения состояний
+            # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Пыщь")
+            bot.send_message(int(resp['ID']), 'Заказ принят!')
+            states.update_user_state(int(resp['ID']), 'WAITING')
+        else:
+            # если заказ не принят
+
+            # TODO изменения состояний
+            # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Sad")
+            bot.send_message(int(resp['ID']), 'а идика ты с ослом')
+    elif call.inline_message_id:
+        bot.send_message(MANAGER, 'чухчух')
+        resp = eval(call.data)
+        if resp['Answer']:
+            # если приняли заказ
+
+            # TODO изменения состояний
             # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Пыщь")
             bot.send_message(int(resp['ID']), 'Заказ принят!')
             states.update_user_state(int(resp['ID']), 'WAITING')
